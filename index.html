@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>WildSpot – Find the Hidden Animal</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #080c08;
+    --surface: #0f150f;
+    --surface2: #161e16;
+    --border: rgba(255,255,255,0.08);
+    --accent: #7ed348;
+    --accent2: #f0c040;
+    --danger: #e05540;
+    --text: #f0ede8;
+    --muted: rgba(240,237,232,0.4);
+    --font-display: 'Bebas Neue', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); font-family:var(--font-body); color:var(--text); }
+
+  /* ── SCREENS ── */
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .4s ease; }
+  .screen.active { opacity:1; pointer-events:all; }
+
+  /* ── HOME ── */
+  #home { background:var(--bg); }
+  .home-bg { position:absolute; inset:0; background:url('images/level4_leopard.png') center/cover no-repeat; opacity:.18; }
+  .home-content { position:relative; z-index:1; text-align:center; padding:2rem; }
+  .home-logo { font-family:var(--font-display); font-size:clamp(64px,18vw,110px); line-height:.9; letter-spacing:2px; background:linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .home-sub { font-size:13px; letter-spacing:4px; color:var(--muted); text-transform:uppercase; margin:8px 0 48px; }
+  .btn-primary { background:var(--accent); color:#050a05; font-family:var(--font-display); font-size:22px; letter-spacing:2px; padding:16px 56px; border:none; border-radius:50px; cursor:pointer; transition:transform .15s, box-shadow .15s; box-shadow:0 0 30px rgba(126,211,72,.3); }
+  .btn-primary:active { transform:scale(.96); }
+  .home-stats { display:flex; gap:32px; margin-top:40px; justify-content:center; }
+  .stat { text-align:center; }
+  .stat-n { font-family:var(--font-display); font-size:32px; color:var(--accent); }
+  .stat-l { font-size:11px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+
+  /* ── LEVEL SELECT ── */
+  #levelselect { background:var(--bg); overflow-y:auto; justify-content:flex-start; padding:24px 16px 40px; }
+  .ls-header { width:100%; display:flex; align-items:center; gap:16px; margin-bottom:28px; padding-top:8px; }
+  .back-btn { width:40px; height:40px; border-radius:50%; border:1px solid var(--border); background:var(--surface); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+  .ls-title { font-family:var(--font-display); font-size:32px; letter-spacing:1px; }
+  .levels-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; width:100%; max-width:480px; }
+  .level-card { position:relative; border-radius:16px; overflow:hidden; aspect-ratio:16/10; cursor:pointer; border:1.5px solid transparent; transition:border-color .2s, transform .15s; }
+  .level-card:active { transform:scale(.97); }
+  .level-card.locked { opacity:.45; cursor:not-allowed; }
+  .level-card.completed { border-color:var(--accent); }
+  .level-card img { width:100%; height:100%; object-fit:cover; display:block; }
+  .level-card-overlay { position:absolute; inset:0; background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.85) 100%); display:flex; flex-direction:column; justify-content:flex-end; padding:10px 12px; }
+  .level-num { font-size:10px; color:rgba(255,255,255,.5); letter-spacing:2px; text-transform:uppercase; }
+  .level-name { font-family:var(--font-display); font-size:20px; letter-spacing:1px; line-height:1; }
+  .level-stars { display:flex; gap:3px; margin-top:4px; }
+  .level-stars span { font-size:12px; }
+  .lock-icon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:28px; }
+  .completed-badge { position:absolute; top:8px; right:8px; width:24px; height:24px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; }
+
+  /* ── GAME ── */
+  #game { background:#000; padding:0; justify-content:flex-start; }
+  .game-hud { position:fixed; top:0; left:0; right:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:linear-gradient(180deg,rgba(0,0,0,.9) 0%,transparent 100%); }
+  .hud-back { width:36px; height:36px; border-radius:50%; border:1px solid rgba(255,255,255,.15); background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .hud-center { text-align:center; }
+  .hud-level { font-size:10px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; }
+  .hud-animal { font-family:var(--font-display); font-size:22px; letter-spacing:1px; }
+  .hud-timer { display:flex; align-items:center; gap:6px; background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.12); border-radius:20px; padding:6px 14px; }
+  .hud-timer svg { flex-shrink:0; }
+  .timer-val { font-family:var(--font-display); font-size:20px; letter-spacing:1px; }
+  .timer-val.urgent { color:var(--danger); }
+
+  .game-scene { position:relative; width:100%; height:100vh; overflow:hidden; cursor:crosshair; }
+  .game-scene img { width:100%; height:100%; object-fit:cover; display:block; user-select:none; -webkit-user-drag:none; }
+  .tap-ripple { position:absolute; width:60px; height:60px; margin:-30px 0 0 -30px; border-radius:50%; border:2px solid white; pointer-events:none; animation:ripple .6s ease-out forwards; }
+  @keyframes ripple { 0%{transform:scale(.3);opacity:1} 100%{transform:scale(1.8);opacity:0} }
+  .hint-circle { position:absolute; width:90px; height:90px; margin:-45px 0 0 -45px; border-radius:50%; border:3px solid var(--accent2); pointer-events:none; animation:hintPulse 1s ease-in-out infinite; box-shadow:0 0 20px rgba(240,192,64,.4); }
+  @keyframes hintPulse { 0%,100%{transform:scale(1);opacity:.8} 50%{transform:scale(1.12);opacity:1} }
+  .found-flash { position:absolute; inset:0; background:rgba(126,211,72,.15); pointer-events:none; animation:foundFlash .5s ease-out forwards; }
+  @keyframes foundFlash { 0%{opacity:1} 100%{opacity:0} }
+  .miss-flash { position:absolute; inset:0; background:rgba(224,85,64,.12); pointer-events:none; animation:foundFlash .4s ease-out forwards; }
+
+  /* ── BOTTOM PANEL ── */
+  .game-bottom { position:fixed; bottom:0; left:0; right:0; z-index:100; background:linear-gradient(0deg,rgba(0,0,0,.97) 60%,transparent 100%); padding:12px 20px 28px; }
+  .find-label { font-size:10px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; text-align:center; margin-bottom:10px; }
+  .animal-row { display:flex; align-items:center; gap:12px; }
+  .animal-thumb { width:64px; height:64px; border-radius:14px; border:1.5px solid rgba(255,255,255,.15); overflow:hidden; flex-shrink:0; }
+  .animal-thumb img { width:100%; height:100%; object-fit:cover; }
+  .animal-info { flex:1; }
+  .animal-name { font-family:var(--font-display); font-size:26px; letter-spacing:1px; line-height:1; }
+  .animal-desc { font-size:12px; color:var(--muted); margin-top:3px; }
+  .hint-btn { display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:10px 16px; cursor:pointer; transition:background .2s; min-width:60px; }
+  .hint-btn:active { background:rgba(255,255,255,.12); }
+  .hint-btn svg { width:22px; height:22px; }
+  .hint-btn span { font-size:10px; color:var(--accent2); letter-spacing:1px; }
+  .hint-btn.used { opacity:.4; pointer-events:none; }
+  .progress-row { display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .progress-bar { flex:1; height:3px; background:rgba(255,255,255,.1); border-radius:2px; overflow:hidden; }
+  .progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .4s ease; }
+  .progress-text { font-size:11px; color:var(--muted); white-space:nowrap; }
+
+  /* ── RESULT OVERLAY ── */
+  .result-overlay { position:fixed; inset:0; z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,.85); backdrop-filter:blur(6px); opacity:0; pointer-events:none; transition:opacity .3s; padding:24px; }
+  .result-overlay.show { opacity:1; pointer-events:all; }
+  .result-icon { font-size:64px; margin-bottom:12px; animation:popIn .4s cubic-bezier(.34,1.56,.64,1) forwards; }
+  @keyframes popIn { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+  .result-title { font-family:var(--font-display); font-size:52px; letter-spacing:2px; text-align:center; }
+  .result-title.win { color:var(--accent); }
+  .result-title.lose { color:var(--danger); }
+  .result-stars { display:flex; gap:8px; margin:12px 0 24px; font-size:36px; }
+  .result-time { font-size:14px; color:var(--muted); margin-bottom:32px; }
+  .result-btns { display:flex; gap:12px; }
+  .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); font-family:var(--font-body); font-size:14px; padding:14px 28px; border-radius:50px; cursor:pointer; transition:background .2s; }
+  .btn-outline:active { background:rgba(255,255,255,.08); }
+  .btn-next { background:var(--accent); color:#050a05; font-family:var(--font-display); font-size:20px; letter-spacing:1px; padding:14px 36px; border:none; border-radius:50px; cursor:pointer; transition:transform .15s; }
+  .btn-next:active { transform:scale(.96); }
+
+  /* ── SCORE POPUP ── */
+  .score-popup { position:fixed; z-index:150; font-family:var(--font-display); font-size:28px; color:var(--accent); pointer-events:none; animation:scoreAnim .9s ease-out forwards; text-shadow:0 0 20px rgba(126,211,72,.6); }
+  @keyframes scoreAnim { 0%{transform:translateY(0);opacity:1} 100%{transform:translateY(-80px);opacity:0} }
+
+  /* ── FOUND MARKER ── */
+  .found-marker { position:absolute; width:50px; height:50px; margin:-25px 0 0 -25px; pointer-events:none; animation:markerPop .4s cubic-bezier(.34,1.56,.64,1) forwards; }
+  @keyframes markerPop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+  .found-marker svg { width:100%; height:100%; }
+
+  /* ── AD BANNER PLACEHOLDER ── */
+  .ad-banner { width:100%; height:50px; background:rgba(255,255,255,.03); border-top:1px solid var(--border); display:flex; align-items:center; justify-content:center; position:fixed; bottom:0; left:0; right:0; z-index:300; font-size:11px; color:var(--muted); letter-spacing:2px; }
+  .ad-banner.hidden { display:none; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HOME SCREEN ══════════════ -->
+<div class="screen active" id="home">
+  <div class="home-bg"></div>
+  <div class="home-content">
+    <div class="home-logo">WILD<br>SPOT</div>
+    <div class="home-sub">Find the hidden animal</div>
+    <button class="btn-primary" onclick="showScreen('levelselect')">PLAY</button>
+    <div class="home-stats">
+      <div class="stat"><div class="stat-n" id="stat-levels">8</div><div class="stat-l">Levels</div></div>
+      <div class="stat"><div class="stat-n" id="stat-score">0</div><div class="stat-l">Best Score</div></div>
+      <div class="stat"><div class="stat-n" id="stat-stars">0</div><div class="stat-l">Stars</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ LEVEL SELECT ══════════════ -->
+<div class="screen" id="levelselect">
+  <div class="ls-header">
+    <div class="back-btn" onclick="showScreen('home')">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="ls-title">LEVELS</div>
+  </div>
+  <div class="levels-grid" id="levelsGrid"></div>
+</div>
+
+<!-- ══════════════ GAME SCREEN ══════════════ -->
+<div class="screen" id="game">
+  <div class="game-hud">
+    <div class="hud-back" onclick="exitGame()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9l5 5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="hud-center">
+      <div class="hud-level" id="hudLevel">LEVEL 1</div>
+      <div class="hud-animal" id="hudAnimal">CHEETAH</div>
+    </div>
+    <div class="hud-timer">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="8" r="5.5" stroke="rgba(255,255,255,.5)" stroke-width="1.2"/><path d="M7 5.5V8l1.5 1" stroke="rgba(255,255,255,.5)" stroke-width="1.2" stroke-linecap="round"/><path d="M5.5 1.5h3" stroke="rgba(255,255,255,.5)" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <div class="timer-val" id="timerVal">60</div>
+    </div>
+  </div>
+
+  <div class="game-scene" id="gameScene" onclick="handleTap(event)">
+    <img id="gameImg" src="" alt="" draggable="false"/>
+  </div>
+
+  <div class="game-bottom">
+    <div class="find-label">Tap to find</div>
+    <div class="animal-row">
+      <div class="animal-thumb"><img id="thumbImg" src="" alt=""/></div>
+      <div class="animal-info">
+        <div class="animal-name" id="bottomAnimal">CHEETAH</div>
+        <div class="animal-desc" id="bottomDesc">Camouflaged in tall grass</div>
+      </div>
+      <div class="hint-btn" id="hintBtn" onclick="useHint()">
+        <svg viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="9.5" stroke="#f0c040" stroke-width="1.3"/><path d="M11 7v5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/><circle cx="11" cy="15" r="1" fill="#f0c040"/></svg>
+        <span>HINT</span>
+      </div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-text" id="progressText">0 / 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ RESULT OVERLAY ══════════════ -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-icon" id="resultIcon">🎯</div>
+  <div class="result-title" id="resultTitle">FOUND IT!</div>
+  <div class="result-stars" id="resultStars">⭐⭐⭐</div>
+  <div class="result-time" id="resultTime">Found in 12 seconds</div>
+  <div class="result-btns">
+    <button class="btn-outline" onclick="exitGame()">Menu</button>
+    <button class="btn-next" id="nextBtn" onclick="nextLevel()">NEXT LEVEL →</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  LEVEL DATA
+// ══════════════════════════════════════════
+const LEVELS = [
+  {
+    id: 1,
+    name: "Cheetah",
+    scene: "images/level1_cheetah.png",
+    desc: "Hiding in golden grass",
+    difficulty: "Easy",
+    // hotspot: center of animal as % of image width/height
+    hx: 48, hy: 52,
+    radius: 12, // % of min dimension
+    time: 60,
+    hint: "Look center-left, near the grass stalks",
+    funFact: "Cheetahs can accelerate from 0 to 80km/h in just 3 seconds!"
+  },
+  {
+    id: 2,
+    name: "Crocodile",
+    scene: "images/level2_crocodile.png",
+    desc: "Lurking beneath the surface",
+    difficulty: "Easy",
+    hx: 50, hy: 45,
+    radius: 14,
+    time: 55,
+    hint: "Focus on the center of the water",
+    funFact: "Crocodiles have been on Earth for over 200 million years!"
+  },
+  {
+    id: 3,
+    name: "Tree Frog",
+    scene: "images/level3_frog.png",
+    desc: "Blending into wet leaves",
+    difficulty: "Medium",
+    hx: 28, hy: 58,
+    radius: 10,
+    time: 50,
+    hint: "Look bottom-left between the leaf layers",
+    funFact: "Tree frogs can stick to surfaces with toe pads that work like suction cups!"
+  },
+  {
+    id: 4,
+    name: "Leopard",
+    scene: "images/level4_leopard.png",
+    desc: "Resting on a jungle branch",
+    difficulty: "Medium",
+    hx: 42, hy: 48,
+    radius: 18,
+    time: 50,
+    hint: "Look for spots on the mossy branch",
+    funFact: "Leopards are the strongest climbers of all big cats!"
+  },
+  {
+    id: 5,
+    name: "Octopus",
+    scene: "images/level5_octopus.png",
+    desc: "Disguised on the coral reef",
+    difficulty: "Hard",
+    hx: 50, hy: 55,
+    radius: 14,
+    time: 45,
+    hint: "Look for the eye in the center of the reef",
+    funFact: "Octopuses can change color and texture in under a second!"
+  },
+  {
+    id: 6,
+    name: "Sand Viper",
+    scene: "images/level6_viper.png",
+    desc: "Buried in Sahara sand",
+    difficulty: "Hard",
+    hx: 44, hy: 52,
+    radius: 10,
+    time: 45,
+    hint: "Look for tiny horns in the center sand",
+    funFact: "The horned viper buries itself leaving only its eyes and horns exposed!"
+  },
+  {
+    id: 7,
+    name: "Stick Insect",
+    scene: "images/level7_stickinsect.png",
+    desc: "Perfectly mimics a branch",
+    difficulty: "Expert",
+    hx: 48, hy: 52,
+    radius: 9,
+    time: 40,
+    hint: "It's diagonal — look for 6 legs on a branch",
+    funFact: "Stick insects are masters of mimicry — even their eggs look like seeds!"
+  },
+  {
+    id: 8,
+    name: "Arctic Fox",
+    scene: "images/level8_arcticfox.png",
+    desc: "Pure white in the snow",
+    difficulty: "Easy",
+    hx: 50, hy: 62,
+    radius: 16,
+    time: 55,
+    hint: "Look for the tiny black eyes and nose",
+    funFact: "Arctic foxes change their coat from white in winter to brown in summer!"
+  }
+];
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let state = {
+  currentLevel: 0,
+  scores: JSON.parse(localStorage.getItem('wildspot_scores') || '{}'),
+  stars: JSON.parse(localStorage.getItem('wildspot_stars') || '{}'),
+  timer: null,
+  timeLeft: 60,
+  hintUsed: false,
+  found: false,
+  levelStartTime: 0,
+  totalScore: 0
+};
+
+function saveState() {
+  localStorage.setItem('wildspot_scores', JSON.stringify(state.scores));
+  localStorage.setItem('wildspot_stars', JSON.stringify(state.stars));
+}
+
+// ══════════════════════════════════════════
+//  SCREEN MANAGEMENT
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'levelselect') buildLevelGrid();
+  if (id === 'home') updateHomeStats();
+}
+
+// ══════════════════════════════════════════
+//  HOME STATS
+// ══════════════════════════════════════════
+function updateHomeStats() {
+  const totalStars = Object.values(state.stars).reduce((a,b)=>a+b,0);
+  const bestScore = Object.values(state.scores).reduce((a,b)=>Math.max(a,b),0);
+  document.getElementById('stat-stars').textContent = totalStars;
+  document.getElementById('stat-score').textContent = bestScore;
+}
+
+// ══════════════════════════════════════════
+//  LEVEL GRID
+// ══════════════════════════════════════════
+function buildLevelGrid() {
+  const grid = document.getElementById('levelsGrid');
+  grid.innerHTML = '';
+  LEVELS.forEach((lvl, i) => {
+    const unlocked = i === 0 || state.scores[(i).toString()];
+    const completed = !!state.scores[(i+1).toString()];
+    const stars = state.stars[(i+1).toString()] || 0;
+    const card = document.createElement('div');
+    card.className = 'level-card' + (!unlocked ? ' locked' : '') + (completed ? ' completed' : '');
+    card.innerHTML = `
+      <img src="${lvl.scene}" alt="${lvl.name}" loading="lazy"/>
+      <div class="level-card-overlay">
+        <div class="level-num">Level ${lvl.id} · ${lvl.difficulty}</div>
+        <div class="level-name">${lvl.name.toUpperCase()}</div>
+        <div class="level-stars">
+          ${[1,2,3].map(s=>`<span>${s<=stars?'⭐':'☆'}</span>`).join('')}
+        </div>
+      </div>
+      ${!unlocked ? '<div class="lock-icon">🔒</div>' : ''}
+      ${completed ? '<div class="completed-badge">✓</div>' : ''}
+    `;
+    if (unlocked) card.onclick = () => startLevel(i);
+    grid.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════════
+//  START LEVEL
+// ══════════════════════════════════════════
+function startLevel(idx) {
+  state.currentLevel = idx;
+  state.found = false;
+  state.hintUsed = false;
+  state.levelStartTime = Date.now();
+  const lvl = LEVELS[idx];
+
+  // reset UI
+  document.getElementById('hudLevel').textContent = `LEVEL ${lvl.id}`;
+  document.getElementById('hudAnimal').textContent = lvl.name.toUpperCase();
+  document.getElementById('gameImg').src = lvl.scene;
+  document.getElementById('thumbImg').src = lvl.scene;
+  document.getElementById('bottomAnimal').textContent = lvl.name.toUpperCase();
+  document.getElementById('bottomDesc').textContent = lvl.desc;
+  document.getElementById('hintBtn').classList.remove('used');
+
+  // progress
+  const completed = Object.keys(state.scores).length;
+  document.getElementById('progressFill').style.width = (completed/LEVELS.length*100)+'%';
+  document.getElementById('progressText').textContent = `${completed} / ${LEVELS.length}`;
+
+  // clear old elements
+  document.querySelectorAll('.tap-ripple,.hint-circle,.found-marker,.found-flash,.miss-flash').forEach(e=>e.remove());
+  document.getElementById('resultOverlay').classList.remove('show');
+
+  startTimer(lvl.time);
+  showScreen('game');
+}
+
+// ══════════════════════════════════════════
+//  TIMER
+// ══════════════════════════════════════════
+function startTimer(seconds) {
+  clearInterval(state.timer);
+  state.timeLeft = seconds;
+  updateTimerDisplay();
+  state.timer = setInterval(() => {
+    state.timeLeft--;
+    updateTimerDisplay();
+    if (state.timeLeft <= 0) {
+      clearInterval(state.timer);
+      if (!state.found) showResult(false);
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timerVal');
+  el.textContent = state.timeLeft;
+  el.classList.toggle('urgent', state.timeLeft <= 10);
+}
+
+// ══════════════════════════════════════════
+//  TAP HANDLING
+// ══════════════════════════════════════════
+function handleTap(e) {
+  if (state.found) return;
+  const scene = document.getElementById('gameScene');
+  const rect = scene.getBoundingClientRect();
+  const tapX = (e.clientX - rect.left) / rect.width * 100;
+  const tapY = (e.clientY - rect.top) / rect.height * 100;
+
+  // ripple effect
+  addRipple(e.clientX - rect.left, e.clientY - rect.top);
+
+  const lvl = LEVELS[state.currentLevel];
+  const dist = Math.sqrt(Math.pow(tapX - lvl.hx, 2) + Math.pow(tapY - lvl.hy, 2));
+
+  if (dist <= lvl.radius) {
+    onFound(tapX, tapY);
+  } else {
+    onMiss(e.clientX - rect.left, e.clientY - rect.top);
+  }
+}
+
+function addRipple(x, y) {
+  const scene = document.getElementById('gameScene');
+  const r = document.createElement('div');
+  r.className = 'tap-ripple';
+  r.style.left = x + 'px';
+  r.style.top = y + 'px';
+  scene.appendChild(r);
+  setTimeout(() => r.remove(), 700);
+}
+
+function onFound(tapX, tapY) {
+  state.found = true;
+  clearInterval(state.timer);
+  const lvl = LEVELS[state.currentLevel];
+  const timeTaken = Math.round((Date.now() - state.levelStartTime) / 1000);
+  const timeBonus = Math.max(0, state.timeLeft);
+  const hintPenalty = state.hintUsed ? 200 : 0;
+  const score = Math.max(100, 500 + timeBonus * 10 - hintPenalty);
+
+  // stars
+  let stars = 1;
+  if (!state.hintUsed && state.timeLeft > lvl.time * 0.6) stars = 3;
+  else if (state.timeLeft > lvl.time * 0.3) stars = 2;
+
+  state.scores[(state.currentLevel+1).toString()] = score;
+  state.stars[(state.currentLevel+1).toString()] = Math.max(stars, state.stars[(state.currentLevel+1).toString()]||0);
+  saveState();
+
+  // found marker
+  const scene = document.getElementById('gameScene');
+  const rect = scene.getBoundingClientRect();
+  const marker = document.createElement('div');
+  marker.className = 'found-marker';
+  marker.style.left = (lvl.hx / 100 * rect.width) + 'px';
+  marker.style.top = (lvl.hy / 100 * rect.height) + 'px';
+  marker.innerHTML = `<svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="23" fill="none" stroke="#7ed348" stroke-width="2"/><path d="M15 25l7 7 13-13" stroke="#7ed348" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  scene.appendChild(marker);
+
+  // flash
+  const flash = document.createElement('div');
+  flash.className = 'found-flash';
+  scene.appendChild(flash);
+  setTimeout(()=>flash.remove(), 600);
+
+  // score popup
+  showScorePopup(rect.width/2, rect.height/2, `+${score}`);
+
+  setTimeout(() => showResult(true, stars, timeTaken, score), 900);
+}
+
+function onMiss(x, y) {
+  const scene = document.getElementById('gameScene');
+  const flash = document.createElement('div');
+  flash.className = 'miss-flash';
+  scene.appendChild(flash);
+  setTimeout(()=>flash.remove(), 500);
+}
+
+function showScorePopup(x, y, text) {
+  const el = document.createElement('div');
+  el.className = 'score-popup';
+  el.textContent = text;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.getElementById('gameScene').appendChild(el);
+  setTimeout(()=>el.remove(), 1000);
+}
+
+// ══════════════════════════════════════════
+//  HINT
+// ══════════════════════════════════════════
+function useHint() {
+  if (state.hintUsed || state.found) return;
+  state.hintUsed = true;
+  document.getElementById('hintBtn').classList.add('used');
+
+  const lvl = LEVELS[state.currentLevel];
+  const scene = document.getElementById('gameScene');
+  const rect = scene.getBoundingClientRect();
+  const hx = lvl.hx / 100 * rect.width;
+  const hy = lvl.hy / 100 * rect.height;
+
+  // remove old hints
+  document.querySelectorAll('.hint-circle').forEach(e=>e.remove());
+
+  const hint = document.createElement('div');
+  hint.className = 'hint-circle';
+  hint.style.left = hx + 'px';
+  hint.style.top = hy + 'px';
+  scene.appendChild(hint);
+  setTimeout(() => hint.remove(), 4000);
+}
+
+// ══════════════════════════════════════════
+//  RESULT
+// ══════════════════════════════════════════
+function showResult(won, stars=0, timeTaken=0, score=0) {
+  const overlay = document.getElementById('resultOverlay');
+  document.getElementById('resultIcon').textContent = won ? '🎯' : '⏰';
+  const title = document.getElementById('resultTitle');
+  title.textContent = won ? 'FOUND IT!' : 'TIME\'S UP!';
+  title.className = 'result-title ' + (won ? 'win' : 'lose');
+  document.getElementById('resultStars').textContent = won ? [1,2,3].map(s=>s<=stars?'⭐':'☆').join('') : '☆☆☆';
+  document.getElementById('resultTime').textContent = won
+    ? `Found in ${timeTaken}s · +${score} pts`
+    : `The ${LEVELS[state.currentLevel].name} was hiding... try again!`;
+
+  const nextBtn = document.getElementById('nextBtn');
+  const isLast = state.currentLevel >= LEVELS.length - 1;
+  nextBtn.textContent = isLast ? 'MENU' : 'NEXT LEVEL →';
+  nextBtn.onclick = isLast ? () => showScreen('home') : nextLevel;
+
+  if (!won) {
+    nextBtn.textContent = 'RETRY';
+    nextBtn.onclick = () => { overlay.classList.remove('show'); startLevel(state.currentLevel); };
+  }
+
+  overlay.classList.add('show');
+}
+
+function nextLevel() {
+  const next = state.currentLevel + 1;
+  if (next < LEVELS.length) {
+    document.getElementById('resultOverlay').classList.remove('show');
+    startLevel(next);
+  } else {
+    showScreen('home');
+  }
+}
+
+function exitGame() {
+  clearInterval(state.timer);
+  document.getElementById('resultOverlay').classList.remove('show');
+  showScreen('levelselect');
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+updateHomeStats();
+</script>
+</body>
+</html>
